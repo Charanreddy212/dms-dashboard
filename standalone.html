@@ -954,6 +954,11 @@ const DocumentManagementDashboard = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
   const [time, setTime] = useState(new Date());
+  
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiResponse, setAiResponse] = useState(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   // Stateful Data
   const [documents, setDocuments] = useState(initialDocuments);
@@ -1014,6 +1019,37 @@ const DocumentManagementDashboard = () => {
   const markAllRead = () => {
     setNotifications(notifications.map(n => ({ ...n, unread: false })));
   };
+  
+  const handleAiSearch = async () => {
+    if (!aiQuery.trim()) return;
+    setIsAiLoading(true);
+    setAiResponse(null);
+    try {
+      const response = await fetch('http://localhost:3000/api/v1/ai/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: aiQuery })
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      setAiResponse(data);
+    } catch (error) {
+      // Fallback for local demo without backend running
+      setTimeout(() => {
+        setAiResponse({
+          answer: `[Mock AI Response] Based on the context of your query "${aiQuery}", safety goggles and gloves must be worn at all times near the assembly station as per ISO-9001 compliance standards.`,
+          sources: [
+            { code: "QA-SOP-2024-001", title: "Assembly Standard Operating Procedure", relevance: 0.95 },
+            { code: "PROD-WI-2024-015", title: "Welding Work Instruction", relevance: 0.82 }
+          ]
+        });
+        setIsAiLoading(false);
+      }, 1200);
+      return;
+    }
+    setIsAiLoading(false);
+  };
+  
   const unreadCount = notifications.filter(n => n.unread).length;
 
   const filteredDocuments = documents.filter(doc => {
@@ -1155,7 +1191,7 @@ const DocumentManagementDashboard = () => {
           <span className="action-icon">+</span>
           <span className="action-label">Create SOP</span>
         </button>
-        <button className="action-btn action-search" onClick={() => { setActiveTab('documents'); document.querySelector('.search-box input')?.focus(); }}>
+        <button className="action-btn action-search" onClick={() => setShowAiModal(true)}>
           <span className="action-icon">🔍</span>
           <span className="action-label">AI Search</span>
         </button>
@@ -1355,6 +1391,52 @@ const DocumentManagementDashboard = () => {
                   </div>
                 </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI Search Modal */}
+      {showAiModal && (
+        <div className="ai-modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000}}>
+          <div className="ai-modal" style={{backgroundColor: 'var(--bg-secondary)', padding: '2rem', borderRadius: '12px', width: '90%', maxWidth: '650px', border: '1px solid var(--border-color)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+              <h2 style={{margin: 0, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-display)'}}>
+                <span style={{fontSize: '1.5rem'}}>🤖</span> AI Enterprise Search
+              </h2>
+              <button onClick={() => { setShowAiModal(false); setAiResponse(null); setAiQuery(''); }} style={{background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.5rem', cursor: 'pointer'}}>×</button>
+            </div>
+            
+            <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1.5rem'}}>
+              <input 
+                type="text" 
+                value={aiQuery} 
+                onChange={(e) => setAiQuery(e.target.value)} 
+                placeholder="Ask anything about your documents... (e.g., 'What is the safety protocol?')"
+                style={{flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none'}}
+                onKeyPress={(e) => e.key === 'Enter' && handleAiSearch()}
+              />
+              <button onClick={handleAiSearch} style={{padding: '0.75rem 1.5rem', backgroundColor: 'var(--accent-blue)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'}} disabled={isAiLoading}>
+                {isAiLoading ? 'Searching...' : 'Ask AI'}
+              </button>
+            </div>
+
+            {aiResponse && (
+              <div className="ai-response" style={{backgroundColor: 'rgba(0, 194, 255, 0.05)', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid var(--accent-blue)'}}>
+                <h4 style={{margin: '0 0 1rem 0', color: 'var(--text-primary)'}}>Answer:</h4>
+                <p style={{lineHeight: '1.6', color: 'var(--text-secondary)', margin: '0 0 1.5rem 0'}}>{aiResponse.answer}</p>
+                
+                {aiResponse.sources && (
+                  <div>
+                    <h5 style={{margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px'}}>Sources Cited:</h5>
+                    {aiResponse.sources.map((src, i) => (
+                      <div key={i} style={{display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--accent-blue)', marginBottom: '0.5rem'}}>
+                        📄 {src.code} - {src.title} ({(src.relevance * 100).toFixed(0)}% match)
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
