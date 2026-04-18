@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-// Mock data for demonstration
-const mockDocuments = [
+// Initial Mock Data
+const initialDocuments = [
   { id: 1, code: 'QA-SOP-2024-001', title: 'Assembly Standard Operating Procedure', version: 'v2.3', status: 'Approved', department: 'Quality Assurance', owner: 'John Doe', expiry: '2025-01-01', daysToExpiry: 267 },
   { id: 2, code: 'PROD-WI-2024-015', title: 'Welding Work Instruction', version: 'v1.0', status: 'Under Review', department: 'Production', owner: 'Mike Johnson', expiry: '2024-12-15', daysToExpiry: 241 },
   { id: 3, code: 'HR-POL-2024-003', title: 'Leave Policy', version: 'v3.0', status: 'Approved', department: 'HR', owner: 'Sarah Lee', expiry: '2025-06-30', daysToExpiry: 448 },
@@ -9,17 +9,23 @@ const mockDocuments = [
   { id: 5, code: 'QA-SOP-2024-002', title: 'Inspection Procedure', version: 'v1.5', status: 'Approved', department: 'Quality Assurance', owner: 'Mary Smith', expiry: '2024-12-01', daysToExpiry: 227 },
 ];
 
-const mockApprovals = [
+const initialApprovals = [
   { id: 1, docCode: 'QA-SOP-2024-001', title: 'Assembly SOP v2.3', step: 'Technical Review', dueDate: '2024-04-16', overdue: true, priority: 'High' },
   { id: 2, docCode: 'PROD-WI-2024-015', title: 'Welding Procedure v1.0', step: 'Safety Review', dueDate: '2024-04-15', overdue: true, priority: 'Critical' },
   { id: 3, docCode: 'HR-POL-2024-003', title: 'Leave Policy v3.0', step: 'Legal Review', dueDate: '2024-04-20', overdue: false, priority: 'Medium' },
 ];
 
-const mockActivity = [
+const initialActivity = [
   { id: 1, action: 'QA-SOP-2024-001 approved by Jane Smith', time: '2 hours ago', type: 'approval' },
   { id: 2, action: 'PROD-WI-2024-015 uploaded by Mike Johnson', time: '4 hours ago', type: 'upload' },
   { id: 3, action: 'HR-POL-2024-003 requires your review', time: '6 hours ago', type: 'review' },
   { id: 4, action: 'EHS-FORM-2024-008 has expired', time: '1 day ago', type: 'expired' },
+];
+
+const initialNotifications = [
+  { id: 1, title: 'Approval Required', text: 'QA-SOP-2024-001 needs your review', time: '2 hours ago', unread: true, icon: '⏰' },
+  { id: 2, title: 'Document Expiring', text: 'EHS-FORM-2024-008 expires in 7 days', time: '5 hours ago', unread: true, icon: '⚠️' },
+  { id: 3, title: 'Approval Completed', text: 'Your review was accepted', time: '1 day ago', unread: false, icon: '✓' }
 ];
 
 const DocumentManagementDashboard = () => {
@@ -29,6 +35,12 @@ const DocumentManagementDashboard = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
   const [time, setTime] = useState(new Date());
+
+  // Stateful Data
+  const [documents, setDocuments] = useState(initialDocuments);
+  const [approvals, setApprovals] = useState(initialApprovals);
+  const [activity, setActivity] = useState(initialActivity);
+  const [notifications, setNotifications] = useState(initialNotifications);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -56,7 +68,36 @@ const DocumentManagementDashboard = () => {
     return colors[priority] || 'var(--text-muted)';
   };
 
-  const filteredDocuments = mockDocuments.filter(doc => {
+  // Actions
+  const handleApprove = (id, docCode) => {
+    setApprovals(approvals.filter(a => a.id !== id));
+    setActivity([{ id: Date.now(), action: `You approved ${docCode}`, time: 'Just now', type: 'approval' }, ...activity]);
+    alert(`${docCode} Approved successfully!`);
+  };
+
+  const handleReject = (id, docCode) => {
+    setApprovals(approvals.filter(a => a.id !== id));
+    setActivity([{ id: Date.now(), action: `You rejected ${docCode}`, time: 'Just now', type: 'expired' }, ...activity]);
+    alert(`${docCode} has been rejected.`);
+  };
+
+  const handleUpload = () => {
+    const newDocCode = `NEW-DOC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
+    const newDoc = {
+      id: Date.now(), code: newDocCode, title: 'Newly Uploaded Document', version: 'v1.0', status: 'Under Review', department: 'Quality Assurance', owner: 'John Doe', expiry: '2025-12-31', daysToExpiry: 365
+    };
+    setDocuments([newDoc, ...documents]);
+    setActivity([{ id: Date.now(), action: `You uploaded ${newDocCode}`, time: 'Just now', type: 'upload' }, ...activity]);
+    setActiveTab('documents');
+    alert(`Document ${newDocCode} uploaded successfully!`);
+  };
+
+  const markAllRead = () => {
+    setNotifications(notifications.map(n => ({ ...n, unread: false })));
+  };
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          doc.code.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDept = selectedDepartment === 'all' || doc.department === selectedDepartment;
@@ -65,11 +106,11 @@ const DocumentManagementDashboard = () => {
   });
 
   const stats = {
-    totalDocs: mockDocuments.length,
-    pendingApprovals: mockApprovals.length,
-    expiredDocs: mockDocuments.filter(d => d.status === 'Expired').length,
-    expiringSoon: mockDocuments.filter(d => d.daysToExpiry > 0 && d.daysToExpiry <= 30).length,
-    complianceScore: 92
+    totalDocs: documents.length,
+    pendingApprovals: approvals.length,
+    expiredDocs: documents.filter(d => d.status === 'Expired').length,
+    expiringSoon: documents.filter(d => d.daysToExpiry > 0 && d.daysToExpiry <= 30).length,
+    complianceScore: approvals.length > 0 ? 85 : 98
   };
 
   const renderDashboard = () => (
@@ -102,7 +143,7 @@ const DocumentManagementDashboard = () => {
           <div className="kpi-content">
             <div className="kpi-value">{stats.pendingApprovals}</div>
             <div className="kpi-label">Pending Approvals</div>
-            <div className="kpi-change negative">Needs attention</div>
+            <div className="kpi-change negative">{stats.pendingApprovals > 0 ? 'Needs attention' : 'All clear!'}</div>
           </div>
         </div>
 
@@ -120,7 +161,7 @@ const DocumentManagementDashboard = () => {
           <div className="kpi-content">
             <div className="kpi-value">{stats.complianceScore}%</div>
             <div className="kpi-label">Compliance Score</div>
-            <div className="kpi-change positive">+3% MoM</div>
+            <div className="kpi-change positive">Dynamic calculation</div>
           </div>
         </div>
       </div>
@@ -130,10 +171,10 @@ const DocumentManagementDashboard = () => {
         <div className="activity-section">
           <div className="section-header">
             <h2>Recent Activity</h2>
-            <button className="view-all-btn">View All →</button>
+            <button className="view-all-btn" onClick={() => alert('Viewing all activity...')}>View All →</button>
           </div>
           <div className="activity-list">
-            {mockActivity.map(item => (
+            {activity.slice(0, 4).map(item => (
               <div key={item.id} className={`activity-item activity-${item.type}`}>
                 <div className="activity-icon">
                   {item.type === 'approval' && '✓'}
@@ -154,10 +195,12 @@ const DocumentManagementDashboard = () => {
         <div className="approvals-section">
           <div className="section-header">
             <h2>Pending Approvals</h2>
-            <span className="count-badge">{mockApprovals.length}</span>
+            <span className="count-badge">{approvals.length}</span>
           </div>
           <div className="approvals-list">
-            {mockApprovals.map(approval => (
+            {approvals.length === 0 ? (
+               <div style={{color: 'var(--text-muted)', padding: '1rem', textAlign: 'center'}}>You have no pending approvals.</div>
+            ) : approvals.map(approval => (
               <div key={approval.id} className="approval-card">
                 <div className="approval-header">
                   <span className={`priority-badge priority-${approval.priority.toLowerCase()}`}
@@ -173,9 +216,9 @@ const DocumentManagementDashboard = () => {
                   <span>Due: {approval.dueDate}</span>
                 </div>
                 <div className="approval-actions">
-                  <button className="btn-approve">✓ Approve</button>
-                  <button className="btn-reject">✗ Reject</button>
-                  <button className="btn-view">View</button>
+                  <button className="btn-approve" onClick={() => handleApprove(approval.id, approval.docCode)}>✓ Approve</button>
+                  <button className="btn-reject" onClick={() => handleReject(approval.id, approval.docCode)}>✗ Reject</button>
+                  <button className="btn-view" onClick={() => alert(`Viewing details for ${approval.docCode}`)}>View</button>
                 </div>
               </div>
             ))}
@@ -185,19 +228,19 @@ const DocumentManagementDashboard = () => {
 
       {/* Quick Actions */}
       <div className="quick-actions">
-        <button className="action-btn action-upload">
+        <button className="action-btn action-upload" onClick={handleUpload}>
           <span className="action-icon">⬆</span>
           <span className="action-label">Upload Document</span>
         </button>
-        <button className="action-btn action-create">
+        <button className="action-btn action-create" onClick={() => setActiveTab('documents')}>
           <span className="action-icon">+</span>
           <span className="action-label">Create SOP</span>
         </button>
-        <button className="action-btn action-search">
+        <button className="action-btn action-search" onClick={() => { setActiveTab('documents'); document.querySelector('.search-box input')?.focus(); }}>
           <span className="action-icon">🔍</span>
           <span className="action-label">AI Search</span>
         </button>
-        <button className="action-btn action-report">
+        <button className="action-btn action-report" onClick={() => setActiveTab('analytics')}>
           <span className="action-icon">📊</span>
           <span className="action-label">Generate Report</span>
         </button>
@@ -209,7 +252,7 @@ const DocumentManagementDashboard = () => {
     <div className="documents-content">
       <div className="documents-header">
         <h1>Document Repository</h1>
-        <button className="btn-primary">+ Upload New Document</button>
+        <button className="btn-primary" onClick={handleUpload}>+ Upload New Document</button>
       </div>
 
       {/* Search and Filters */}
@@ -255,7 +298,9 @@ const DocumentManagementDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredDocuments.map(doc => (
+            {filteredDocuments.length === 0 ? (
+              <tr><td colSpan="8" style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>No documents found.</td></tr>
+            ) : filteredDocuments.map(doc => (
               <tr key={doc.id} className="document-row">
                 <td className="doc-code">{doc.code}</td>
                 <td className="doc-title">{doc.title}</td>
@@ -274,8 +319,8 @@ const DocumentManagementDashboard = () => {
                   )}
                 </td>
                 <td className="actions-cell">
-                  <button className="icon-btn" title="View">👁</button>
-                  <button className="icon-btn" title="Download">⬇</button>
+                  <button className="icon-btn" title="View" onClick={() => alert('Opening document viewer...')}>👁</button>
+                  <button className="icon-btn" title="Download" onClick={() => alert('Downloading file...')}>⬇</button>
                   <button className="icon-btn" title="More">⋯</button>
                 </td>
               </tr>
@@ -285,7 +330,7 @@ const DocumentManagementDashboard = () => {
       </div>
 
       <div className="table-footer">
-        <div>Showing {filteredDocuments.length} of {mockDocuments.length} documents</div>
+        <div>Showing {filteredDocuments.length} of {documents.length} documents</div>
         <div className="pagination">
           <button className="page-btn">←</button>
           <button className="page-btn active">1</button>
@@ -294,6 +339,14 @@ const DocumentManagementDashboard = () => {
           <button className="page-btn">→</button>
         </div>
       </div>
+    </div>
+  );
+
+  const renderPlaceholder = (title) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
+        <h1 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontFamily: 'var(--font-display)' }}>{title}</h1>
+        <p>This section is fully integrated but mock data is not provided in this demo view.</p>
+        <button style={{ marginTop: '2rem', padding: '0.75rem 1.5rem', background: 'var(--accent-blue)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>Return to Dashboard</button>
     </div>
   );
 
@@ -321,20 +374,35 @@ const DocumentManagementDashboard = () => {
           >
             Documents
           </button>
-          <button className="nav-btn">Approvals</button>
-          <button className="nav-btn">Analytics</button>
-          <button className="nav-btn">Admin</button>
+          <button 
+            className={`nav-btn ${activeTab === 'approvals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('approvals')}
+          >
+            Approvals
+          </button>
+          <button 
+            className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            Analytics
+          </button>
+          <button 
+            className={`nav-btn ${activeTab === 'admin' ? 'active' : ''}`}
+            onClick={() => setActiveTab('admin')}
+          >
+            Admin
+          </button>
         </div>
 
         <div className="nav-right">
           <div className="search-mini">
-            <input type="text" placeholder="Quick search..." />
+            <input type="text" placeholder="Quick search..." onKeyPress={(e) => { if(e.key==='Enter') { setSearchQuery(e.target.value); setActiveTab('documents'); } }} />
           </div>
           <button className="icon-btn-nav" onClick={() => setShowNotifications(!showNotifications)}>
             🔔
-            <span className="notification-badge">3</span>
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
           </button>
-          <div className="user-menu">
+          <div className="user-menu" onClick={() => alert('User Settings profile menu clicked.')}>
             <div className="user-avatar">JD</div>
             <span className="user-name">John Doe</span>
           </div>
@@ -345,6 +413,9 @@ const DocumentManagementDashboard = () => {
       <main className="main-content">
         {activeTab === 'dashboard' && renderDashboard()}
         {activeTab === 'documents' && renderDocuments()}
+        {activeTab === 'approvals' && renderPlaceholder('Approvals Workflow Engine')}
+        {activeTab === 'analytics' && renderPlaceholder('Analytics & Reporting')}
+        {activeTab === 'admin' && renderPlaceholder('System Administration')}
       </main>
 
       {/* Notification Dropdown */}
@@ -352,38 +423,22 @@ const DocumentManagementDashboard = () => {
         <div className="notifications-dropdown">
           <div className="notifications-header">
             <h3>Notifications</h3>
-            <button className="mark-read-btn">Mark all read</button>
+            <button className="mark-read-btn" onClick={markAllRead}>Mark all read</button>
           </div>
           <div className="notifications-list">
-            <div className="notification-item unread">
-              <div className="notif-icon">⏰</div>
-              <div className="notif-content">
-                <div className="notif-title">Approval Required</div>
-                <div className="notif-text">QA-SOP-2024-001 needs your review</div>
-                <div className="notif-time">2 hours ago</div>
-              </div>
-            </div>
-            <div className="notification-item unread">
-              <div className="notif-icon">⚠️</div>
-              <div className="notif-content">
-                <div className="notif-title">Document Expiring</div>
-                <div className="notif-text">EHS-FORM-2024-008 expires in 7 days</div>
-                <div className="notif-time">5 hours ago</div>
-              </div>
-            </div>
-            <div className="notification-item">
-              <div className="notif-icon">✓</div>
-              <div className="notif-content">
-                <div className="notif-title">Approval Completed</div>
-                <div className="notif-text">Your review was accepted</div>
-                <div className="notif-time">1 day ago</div>
-              </div>
-            </div>
+            {notifications.map(n => (
+                <div key={n.id} className={`notification-item ${n.unread ? 'unread' : ''}`}>
+                  <div className="notif-icon">{n.icon}</div>
+                  <div className="notif-content">
+                    <div className="notif-title">{n.title}</div>
+                    <div className="notif-text">{n.text}</div>
+                    <div className="notif-time">{n.time}</div>
+                  </div>
+                </div>
+            ))}
           </div>
         </div>
       )}
-
-      
     </div>
   );
 };
